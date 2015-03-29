@@ -8,84 +8,70 @@ grammar QL;
 	import uva.ql.ast.expressions.*;
 	import uva.ql.ast.expressions.literals.*;
 	import uva.ql.ast.expressions.math.*;
+	import uva.ql.ast.expressions.logic.*;
 	import java.util.*;
 }
 
+prog	: form EOF ;
 
-prog	: form+ EOF ;
+form	: 'form' id = Identifier '{' stms+=stat* '}' ;
 
-form	: 'form' ID '{' quest* stat* '}' ;
+quest	: 'question' primitiveType id = Identifier '(' str = STRING ')' ';'								# SimpleQuestion
+		| 'question' primitiveType id = Identifier '(' str = STRING ')' '{' expression = assign '}'		# ComputedQuestion
+		;	
 
-quest locals[List<String> decls = new ArrayList<String>()]	
-		: 'question' ID typeof primitiveType '{' quest_decl+ decl* stat* expr* '}' ;
+stat	: expr			# CtxExpression
+		| quest			# CtxQuestion
+	 	| ifStatement	# CtxIfStatement					
+	 	| assign		# CtxAssign
+	 	;
 
+assign		: Identifier ':' exp = expr ';'	; 	
 
-stat : ifStatement								
-	 | assign
-	 ;
-
-quest_decl	: ID '=' STRING ';' 								// quest_decl only within questions
-			| ID '.' questionType '=' QuestionLiteral ';'
-			| ID '.' 'value' '=' expr ';';	
-
-decl		: primitiveType ID '='? expr? ';';		// Allows int x; && int x = 3 - 1; 
-
-assign		: ID '=' expr ';';
-
-expr returns [Expressions ex]	: x = expr op = EXP<assoc=right> y = expr 		
-								| x = expr (MUL | DIV) y = expr
-								| x = expr op = (ADD | SUB) y = expr	
-								| x = expr op = (LESS |LESS_EQUAL | GREATER | GREATER_EQUAL) y = expr							
-								| x = expr op = ('==' | '!=') y = expr															
-								| x = expr op = '&&' y = expr																	
-								| x = expr op = '||' y = expr																	
-								| '(' x = expr ')'																		
-								| literal																			
-								;
+expr 		: LP x = expr RP														# Parenthesis
+			| x = expr op = EXP<assoc=right> y = expr 								# Exponentiation
+			| x = expr op = (MUL | DIV) y = expr									# MulDiv
+			| x = expr op = (ADD | SUB) y = expr									# AddSub
+			| x = expr op = (LESS |LESS_EQUAL | GREATER | GREATER_EQUAL) y = expr	# LessEqualGreaterEqual
+			| x = expr op = (EQUAL | NOT_EQUAL) y = expr							# EqualNot
+			| x = expr op = LOG_AND y = expr										# LogAnd
+			| x = expr op = LOG_OR y = expr											# LogOr					
+			| lit = literal															# ExprLiteral	
+			;
 	
-ifStatement		: ifThen = 'if' '(' expr ')' '{' quest* stat* decl* '}' 
-				| ifElse = 'if' '(' expr ')' '{' stat '}' elseStat = 'else' '(' quest* stat* decl* ')';
+ifStatement		: 'if' '(' expr ')' '{' stms+=stat* '}';
 	
 
-literal		: NumberLiteral
-			| BooleanLiteral
-			| ID	
+literal		: BooleanLiteral	# CtxBooleanLiteral
+			| Integer			# CtxIntLiteral
+			| Money				# CtxMoneyLiteral
+			| Identifier		# CtxIdentifier	
 			;
 
-QuestionLiteral	: 'OrdinaryQuestion'
-				| 'ComputableQuestion'
-				;
-	
+
 BooleanLiteral 	: 'true'
 				| 'false'
 				;
 
-NumberLiteral	: (INT | ('(-'INT')'))
-				| (FLOAT | ('(-'FLOAT')'))
-				| (CURRENCY | ('(-'CURRENCY')'))
+primitiveType	: 'boolean'		# BooleanPrimitive
+				| 'money'		# MoneyPrimitive
+				| 'string'		# StringPrimitive
+				| 'integer'		# IntPrimitive
 				;
 
-primitiveType	: 'boolean'
-				| 'float'
-				| 'currency'
-				| 'string'
-				| 'int'
-				;
+Identifier	: ID_LETTER (ID_LETTER | DIGIT)* ;
+
+Integer		: (DIGIT | ('(-'DIGIT')')) ;
+
+Money		: Integer;
 
 WS			: (' ' | NL | '\t') -> skip;
-
-ID			: ID_LETTER (ID_LETTER | INT)* ;
 
 /* It gets form, if etc as an identifier and not as keywords */
 
 ID_LETTER	: 'a'..'z' | 'A'..'Z' | '_' ;
 
-INT			: '0' | [1-9] [0-9]*  ;	// We cannot use [0-9]+ because this would mean that 01 + 3 would be acceptable
-
-FLOAT		: INT+ '.' INT*	// How to set the precision to for instance 4? That it returns a value of this precision
-			| '.' INT+;
-
-CURRENCY	: FLOAT;
+DIGIT			: '0' | [1-9] [0-9]*  ;	// We cannot use [0-9]+ because this would mean that 01 + 3 would be acceptable
 
 STRING 		: '"'	(ESC|.)*? '"';
 fragment
@@ -96,8 +82,7 @@ COMMENT		: '/*' .*? '*/' -> skip;	// Multi line comments
 
 /* KEYWORDS - TOKENS */ 
 
-typeof		: 'typeof';
-questionType: 'questionType';
+
 MUL			: '*' ;
 DIV			: '/' ;
 ADD			: '+' ;
@@ -120,7 +105,3 @@ EXP			: '^' ;
 /* semantic actions - next to the production rules, and then call the constructor */
 /* create a class that implements the visitor - because ANTLR generates only visitor interface */
 /* the listener ->  */
-
-
-
-

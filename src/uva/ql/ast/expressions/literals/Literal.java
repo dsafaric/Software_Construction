@@ -1,21 +1,16 @@
 package uva.ql.ast.expressions.literals;
 
-public class Literal<T> {
-	private T value;
-	
-	public Literal(T _value){
-		this.setValue(_value);
+import uva.ql.ast.CodeLines;
+import uva.ql.ast.expressions.Expression;
+
+public abstract class Literal extends Expression{
+
+	public Literal(){
+		super();
 	}
 	
-	private void setValue(T _value){
-		if (_value != null) this.value = _value;
-	}
-	
-	public T getValue(){
-		return this.value;
-	}
-	
-	public String toString(){
-		return this.value.toString();
+	public Literal(CodeLines codeLines) {
+		super(codeLines);
 	}
 }
+
